@@ -15,7 +15,7 @@ class OaiKpaSTM:
     def __init__(self, *args, **kwargs):
         # объект с параметрами
         self.cfg = CfgParameter(serial_num="20713699424D")
-        
+
         # разбор именованных параметров
         self.serial_number = kwargs.get('serial_num', '20713699424D')
         self.debug = kwargs.get('debug', False)
@@ -103,15 +103,17 @@ class OaiKpaSTM:
         return self.state
 
     def stm_update(self):
+        # for i in range(10):
+
         while 1:
             if self.client.connection_status:
-                #
-                self.client.start_continuously_queue_reading(ai=[[2074, 2078]], ao=[], write=[])
+
                 #
                 self.client.write_regs(offset=1246, data_list=[1, 0, 0, 1,
                                                                0, 1, 0, 6,
                                                                0, 0])
                 self.client.write_regs(offset=1318, data_list=[1, 0, 0, 1, 2])
+                #
                 #
                 self.iteration += 1
                 ch_num = self.iteration % self.adc_param["channel_num"]
@@ -129,7 +131,7 @@ class OaiKpaSTM:
                 # stm_mod.client.write_regs(offset=1060, data_list=[0x1C00, 0x0000, 0x0000, 0x0000])
                 # stm_mod.client.write_regs(offset=1064, data_list=[0x1C00, 0x0000, 0x0000, 0x0000])
                 #
-                time.sleep(0.1)
+                time.sleep(0.01)
 
                 channel_num = (self.client.ai_register_map[2074] >> 12) & 0x0F
                 channel_data = (self.client.ai_register_map[2074] & 0xFFF) << 0
