@@ -9,8 +9,8 @@ import os
 import re
 import json
 # модули ОАИ_КПА
-from . import oai_kpa_stm_widget_qt
-from . import oia_kpa_stm_data
+import oai_kpa_stm_widget_qt
+import oia_kpa_stm_data
 
 
 class ClientGUIWindow(QtWidgets.QWidget, oai_kpa_stm_widget_qt.Ui_Form):
@@ -48,7 +48,7 @@ class ClientGUIWindow(QtWidgets.QWidget, oai_kpa_stm_widget_qt.Ui_Form):
         # отслеживание состояния окна
         self.state = 0
         # настройки отображения и сохранения в лог
-        self.gui_update_time_ms = 200
+        self.gui_update_time_ms = 1000
         self.log_update_time_ms = 1000
         # Таймер для создания псевдопотока для обновления GUI
         self.data_update_timer = QtCore.QTimer()
@@ -72,11 +72,6 @@ class ClientGUIWindow(QtWidgets.QWidget, oai_kpa_stm_widget_qt.Ui_Form):
         self.cycleReadPushButton.clicked.connect(self.cycle_reading)
         self.cycle_reading_flag = False
         self.cycleReadPushButton.setStyleSheet('QLineEdit {background-color: %s;}' % "lightgray")
-        self.adc_values = []
-
-        self.values = []
-        self.states = []
-        self.table_data_list = ()
 
     def connection_state_check(self):
         """
@@ -158,7 +153,6 @@ class ClientGUIWindow(QtWidgets.QWidget, oai_kpa_stm_widget_qt.Ui_Form):
             color = "lightgray"
         else:
             self.cycle_reading_flag = True
-            self.module.client.start_continuously_queue_reading(ai=[[2074, 2078]], ao=[], write=[])
             color = "darkseagreen"
         self.cycleReadPushButton.setStyleSheet('QPushButton {background-color: %s;}' % color)
         pass
@@ -170,24 +164,15 @@ class ClientGUIWindow(QtWidgets.QWidget, oai_kpa_stm_widget_qt.Ui_Form):
         """
         try:
             if self.module.state == 1:
-
-                new_list = [item for sublist in self.table_values for item in sublist]
-                voltages = [x.get("voltage") for x in new_list]
-                print(voltages)
-                self.values.clear()
-                self.states.clear()
                 for column in range(self.stm_table_column):
                     for row in range(self.stm_table_row):
                         adc_num, ch_num = column // 2, row + self.stm_table_row*(column % 2)
                         value, state = self.module.get_channel_values(adc_num, ch_num)
-                        self.values.append(value)
-                        self.states.append(state)
                         self.__fill_single_socket(self.stmTableWidget, row, 2*column+1, value,
                                                   color=self.stm_color_map.get(state, "white"))
                         name = self.cfg["user"]["channels"][str(adc_num*16 + ch_num)]
-                        self.__fill_single_socket(self.stmTableWidget, row, 2*column, name, color="white")
-                self.table_data_list = (self.values, self.states)
-
+                        self.__fill_single_socket(self.stmTableWidget, row, 2*column, name,
+                                                  color="white")
             else:
                 pass
         except Exception as error:

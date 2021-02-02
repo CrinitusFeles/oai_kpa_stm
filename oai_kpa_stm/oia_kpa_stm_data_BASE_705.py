@@ -2,13 +2,20 @@
 
 import time
 import threading
-# pip install https://github.com/CrinitusFeles/OaiModbus/releases/download/v.1.1/OAI_ModBus-0.1.1.tar.gz
 import oai_modbus
 import json
 
 
+class CfgParameter:
+    def __init__(self, **kwargs):
+        self.serial_number = kwargs.get('serial_num', '20713699424D')
+
+
 class OaiKpaSTM:
     def __init__(self, *args, **kwargs):
+        # объект с параметрами
+        self.cfg = CfgParameter(serial_num="20713699424D")
+        
         # разбор именованных параметров
         self.serial_number = kwargs.get('serial_num', '20713699424D')
         self.debug = kwargs.get('debug', False)
@@ -47,23 +54,23 @@ class OaiKpaSTM:
                                      for j in range(self.adc_param["adc_num"])]
         self.channel_adc_voltage = [[0 for i in range(self.adc_param["channel_num"])]
                                     for j in range(self.adc_param["adc_num"])]
-        self.adc_cal_a = [[1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3],
-                          [1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 2.207E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3, 1.224E-3]]
+        self.adc_cal_a = [[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                          [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]]
         self.adc_cal_b = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                           [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
-        self.stm_max_min_bound = {"min": [[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                          1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-                                          [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                          1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]],
-                                  "max": [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
-                                          2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
-                                          [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
-                                           2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]]
+        self.stm_max_min_bound = {"min": [[1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+                                          1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0],
+                                          [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+                                          1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]],
+                                  "max": [[1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
+                                          1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
+                                          [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
+                                           1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0]]
                                   }
         self.channel_state = [[0 for i in range(self.adc_param["channel_num"])]
                               for j in range(self.adc_param["adc_num"])]  # (0 - open, 1 - short, 2 - undefined)
         #
-        self.read_write_thread = threading.Thread(target=self.__stm_update, args=(), daemon=True)
+        self.read_write_thread = threading.Thread(target=self.stm_update, args=(), daemon=True)
         self.read_write_thread.start()
         self.adc_data_lock = threading.Lock()
 
@@ -95,21 +102,19 @@ class OaiKpaSTM:
             pass
         return self.state
 
-    def __stm_update(self):
-        adc_num = 0
+    def stm_update(self):
         while 1:
             if self.client.connection_status:
                 #
                 self.client.start_continuously_queue_reading(ai=[[2074, 2078]], ao=[], write=[])
                 #
                 self.client.write_regs(offset=1246, data_list=[1, 0, 0, 1,
-                                                               0, 1, 0, 5,
+                                                               0, 1, 0, 6,
                                                                0, 0])
                 self.client.write_regs(offset=1318, data_list=[1, 0, 0, 1, 2])
                 #
                 self.iteration += 1
                 ch_num = self.iteration % self.adc_param["channel_num"]
-                adc_num_old = adc_num
                 adc_num = (self.iteration//self.adc_param["channel_num"]) % self.adc_param["adc_num"]
                 # set cs
                 # set control register
@@ -129,14 +134,13 @@ class OaiKpaSTM:
                 channel_num = (self.client.ai_register_map[2074] >> 12) & 0x0F
                 channel_data = (self.client.ai_register_map[2074] & 0xFFF) << 0
 
-                # print("%04X" % self.client.ai_register_map[2074])
+                print("%04X" % self.client.ai_register_map[2074])
 
                 if channel_num != ch_num:
                     # raise ValueError("Error with adc channel")
-                    # print("error", channel_num, ch_num)
                     pass
-                self.channel_row_adc_data[adc_num_old][channel_num] = channel_data & 0xFFF
-                self.__refresh_channel_values(adc_num_old, channel_num)
+                self.channel_row_adc_data[adc_num][channel_num] = channel_data & 0xFFF
+                self.__refresh_channel_values(adc_num, ch_num)
         pass
 
     def get_channel_values(self, adc, ch_num):
@@ -218,7 +222,7 @@ class OaiKpaSTM:
 
 if __name__ == '__main__':
     itteration_num = 0
-    stm_mod = OaiKpaSTM(serial_num="2082369E424D", debug=False)
+    stm_mod = OaiKpaSTM(serial_num="20713699424D", debug=False)
     print("Connect")
     stm_mod.connect()
     #
